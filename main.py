@@ -9,14 +9,6 @@ def readFile(filename):
     recorededSignal = channels[:,0] + 1j * channels[:,1]
     return recorededSignal, samplingRate
 
-def frequencySpectrum(inputSignal, samplingRate, timeBegin, timeStep):
-    """Find the amplitudes in frequency domain of the inputSignal by using FFT, then apply Savitzky-Golay filter to reduce noise of the output"""
-    signal = inputSignal[int(timeBegin*samplingRate):int((timeBegin+timeStep)*samplingRate)]
-    frequencies = np.fft.fftfreq(signal.shape[0], 1/samplingRate)
-    FFT = np.fft.fft(signal)
-    filteredAmplitude = scipy.signal.savgol_filter(np.abs(FFT), window_length=int(samplingRate/1000)+1, polyorder=2)
-    return frequencies, filteredAmplitude
-
 def spectralCentroid(frequencies, amplitudes, samplingRate, freqBegin, freqEnd):
     """Finding the center, or spectral centroid, of the signal.
     """   
@@ -25,40 +17,76 @@ def spectralCentroid(frequencies, amplitudes, samplingRate, freqBegin, freqEnd):
     centroid = np.sum(frequencies[indexBegin:indexEnd] * amplitudes[indexBegin:indexEnd]) / np.sum(amplitudes[indexBegin:indexEnd])
     return centroid
 
-def visualizing(outputFilename, inputSignal, samplingRate, timeBegin, timeStep, centroid):
-    """Visualizing inputSignal in frequency domain."""
-    frequencies, amplitudes = frequencySpectrum(inputSignal, samplingRate, timeBegin, timeStep)
-    plt.figure(figsize=(12,4), dpi=300)
-    plt.semilogy(frequencies, amplitudes, '.', markersize=0.01)
-    plt.axvline(x=centroid, color='red', markersize=0.05, label=f'Centroid={centroid/1e6:.4f}MHz')
-    plt.xlabel('Frequencies (MHz)')
-    plt.ylabel('Signal amplitude')
-    tickMax = np.max(frequencies)
-    plt.xticks(np.arange(-tickMax, tickMax, 0.1e6))
-    plt.grid()
-    plt.legend()
-    plt.savefig(f'./plots/Python_{outputFilename}_{timeBegin}to{timeBegin+timeStep}s.png')
-    plt.clf()
+def STFT(signal, fs, timeStep):
+    return scipy.signal.stft(signal, fs=fs, nperseg=timeStep * fs, return_onesided=False)
+
+def Hz_to_kHz(x):
+    return x/1000
+
+def amp_to_dB(x):
+    return 20*np.log10(x)
+
+def dB_to_amp(x):
+    return librosa.core.db_to_amplitude(x)
+
+def removingNoise(fs, signal): 
+    return scipy.signal.savgol_filter(signal, window_length=int(fs/1000)+1, polyorder=2)
 
 if __name__=='__main__':
-    NOAA1 = '22-16-38_162600000Hz_2400000s'
-    NOAA2 = '14-18-17_162600000Hz_2560000s'
-    NOAA = [NOAA1]#, NOAA2]
+    NOAA = 'station1_yagi_SDRSharp_20170312_060959Z_137650kHz_IQ'
+    inputFiles = [NOAA]
 
-    #Time interval that we will be working on, from 0 to 5 seconds with step of 1 second.
     timeStep = 1.
-    timeEnd = 5.
+    timeMax = 20.
 
-    #We will find the centroid of signals between 0.4 and 0.5 MHz
-    freqBegin = 0.4e6
-    freqEnd = 0.5e6
-
-    for inputFile in NOAA:
-        NOAASignal, samplingRate = readFile(inputFile)
-        for timeBegin in np.arange(0, timeEnd, step=timeStep):
-            frequencies, amplitudes = frequencySpectrum(NOAASignal, samplingRate, timeBegin, timeStep)
-            centroid = spectralCentroid(frequencies, amplitudes, samplingRate, freqBegin, freqEnd)
-            visualizing(inputFile, NOAASignal, samplingRate, timeBegin, timeStep, centroid)   #Take time interval from 0 to 3 seconds
-    pass
+    f_min = -30e3 #Hz
+    f_max = 70e3  #Hz
     
+    for inputFile in inputFiles:
+        signal, fs = readFile(inputFile)
+        signal = signal[:int(timeMax*fs)]
+        f, t, spectrum = STFT(signal, fs, timeStep)
+        if (f_min<0) and (f_max>=0):
+            f = np.concatenate((f[:int(f_max)],f[int(f_min):]))
+            spectrum = np.concatenate((spectrum[:int(f_max),:],spectrum[int(f_min):,:]))
+        else:
+            f = f[int(f_min):int(f_max)]
+            spectrum = spectrum[int(f_min):int(f_max),:]
+
+        f = Hz_to_kHz(f)
+        spectrum = amp_to_dB(np.abs(spectrum))
+        avg = np.mean(spectrum, axis=1)
+        # avg = removingNoise(fs, avg)
+        plt.plot(f,avg,'.', markersize=0.1)
+        plt.ylim([-120,0])
+        plt.yticks(np.arange(0,-130,-10))
+        plt.xticks(np.arange(Hz_to_kHz(f_min), Hz_to_kHz(f_max)*1.1, 10))
+        plt.grid()
+        plt.xlabel('Frequency (Hz)')
+        plt.ylabel('Amplitude (dB)')
+        plt.title(f'{timeMax}-second-average of signal')
+        plt.savefig('avg.png')
+        plt.clf()
+        plt.figure(figsize=(8,6), dpi=300)
+        for i, time in enumerate(t[1:-1]):
+            plt.plot(f, spectrum[:,i+1], '.', markersize=0.1)
+            plt.ylim([-120,0])
+            plt.yticks(np.arange(0,-130,-10))
+            plt.xticks(np.arange(Hz_to_kHz(f_min), Hz_to_kHz(f_max)*1.1, Hz_to_kHz(f_max-f_min)/10))
+            plt.grid()
+            plt.xlabel('Frequency (Hz)')
+            plt.ylabel('Amplitude (dB)')
+            plt.title(f'STFT Magnitude at {time} s')
+            plt.savefig(f'./gif/{i:03d}.png')
+            plt.clf()
+
+
+
+
+
+
+
+
+
+
 
