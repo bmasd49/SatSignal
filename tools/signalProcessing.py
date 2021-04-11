@@ -73,13 +73,11 @@ class signal:
         return mag, tools.centroid(self.simplifiedFreq, mag)
 
     def spectrogram(self, step=None, simplify=False):
-        if simplify:
             mag = self.FFT(step=step)
             mag1, centroid = self.findSignal(mag)
+        if simplify:
             return mag1, centroid
         else:
-            mag = self.FFT(step=step)
-            mag1, centroid = self.findSignal(mag)
             return mag, centroid
         
 

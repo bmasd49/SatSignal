@@ -23,7 +23,6 @@ def plotting(signal, steps = None, simplify = False):
     for step in range(len(steps)):
         print(f"Step {step}/{len(steps)}")
         mag, centroid = signal.spectrogram(step=step, simplify=simplify)
-        # f *= scale
         centroid = (centroid + signal.signalOffset)*scale
         centroids[step] = centroid
         plt.plot(f+signal.signalOffset*scale, mag, '.', markersize=1.)
@@ -41,22 +40,8 @@ def plotting(signal, steps = None, simplify = False):
 
     plt.plot(centroids, range(len(centroids)), '.')
     plt.ticklabel_format(useOffset=False)
-    # plt.xticks(np.arange(centroids.min()-1., centroids.max()+1., 1.))
     plt.xlabel("Centroid position [kHz]")
     plt.ylabel("Time step")
     plt.title(f"{signal.name}: The shift of centroid by time")
     plt.savefig("centroidGraph.png")
     os.system("ffmpeg -y -framerate 5 -i ./gif/%03d.png -i ./gif/palette.png -lavfi paletteuse -r 5 output.gif")
-    # for i, time in enumerate(t[1:-1]):
-        # plt.plot(f, spectrum[:,i+1], '.', markersize=1)
-        # plt.axvline(x=maxFreq[i+1])
-        # plt.ylim([-120,100])
-        # plt.yticks(np.arange(0,-130,-10))
-        # plt.xticks(np.arange(Hz_to_kHz(f_min), Hz_to_kHz(f_max)*1.1, Hz_to_kHz(f_max-f_min)/10))
-        # plt.grid()
-        # # plt.xlabel('Frequency (Hz)')
-        # # plt.ylabel('Amplitude (dB)')
-        # plt.title(f'STFT Magnitude at {time} s')
-        # plt.savefig(f'./gif/{i:03d}.png')
-        # plt.clf()
-    # os.system("ffmpeg -y -i ./gif/%03d.png -i ./gif/palette.png -lavfi paletteuse -r 5 output.gif")
