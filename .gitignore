@@ -1,3 +1,7 @@
 NOAA15_20170312_061008Z_137650000Hz_IQ.zip
 inputSignals/
 test.png
+test.py
+SDRSharp*
+__*
+.pyc

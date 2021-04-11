@@ -14,18 +14,6 @@ def local(signal, timeInterval=None, freqInterval=None):
 def windowing():
     pass
 
-
-
-
-
-
-
-
-
-
-
-
-
 def centroid(freq, mag):
     """Finding the center, or spectral centroid, of the signal.
     """   
@@ -53,7 +41,7 @@ def filtering(fs, signal):
 
 def avg_binning(inputArray, sensitivity):
     numberOfBins = int(len(inputArray)/sensitivity)
-    return [np.mean(value) for value in np.array_split(inputArray, numberOfBins)]
+    return np.array([np.mean(value) for value in np.array_split(inputArray, numberOfBins)])
 
 def moving_avg_filter(f, mag, sensitivity):
     fBins = binning(f, sensitivity)
