@@ -64,17 +64,19 @@ class signal:
         return magnitude
     
     def findSignal(self, magnitude):
-        std = np.std(magnitude)
-        safety = -std
+        # std = np.std(magnitude)
+        # safety = -std
+        safety = 0
         mag = tools.avg_binning(magnitude, self.sensitivity)
+        std = np.std(mag)
         mag_avg = np.mean(mag)
         mag -= mag_avg + std + safety
         mag = np.clip(mag, a_min=0., a_max=None)
         return mag, tools.centroid(self.simplifiedFreq, mag)
 
     def spectrogram(self, step=None, simplify=False):
-            mag = self.FFT(step=step)
-            mag1, centroid = self.findSignal(mag)
+        mag = self.FFT(step=step)
+        mag1, centroid = self.findSignal(mag)
         if simplify:
             return mag1, centroid
         else:
