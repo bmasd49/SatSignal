@@ -57,12 +57,12 @@ class signal:
         raw_mag = 20*np.log10(np.abs(np.fft.fft(localSignal)[self.bandwidthIndex]))
         safety_factor = 0
         avg_mag = tools.avg_binning(raw_mag, self.resolution)   
-        if (step%10 == 0):
+        if (int(self.timeStep*step)%1 == 0):
             self.noise_offset = tools.calculate_offset(avg_mag, self.bandWidth, 1e3)   
         avg_mag += self.noise_offset + safety_factor
-        np.clip(avg_mag, out=avg_mag, a_min=0., a_max=None)
-        tools.channel_filter(avg_mag, self.resolution, self.bandWidth, self.pass_bandwidth)
-        centroid = tools.centroid(self.simplifiedFreq, avg_mag)
+        filtered_mag = np.clip(avg_mag, a_min=0., a_max=None)
+        tools.channel_filter(filtered_mag, self.resolution, self.bandWidth, self.pass_bandwidth)
+        centroid = tools.centroid(self.simplifiedFreq, filtered_mag)
 
         if simplify:
             return avg_mag, centroid
@@ -74,7 +74,7 @@ class signal:
 
     def plot(self, maxStep=0, outputType='gif'):
         steps = range(maxStep)
-        IO.plotting(self, steps = steps, simplify = True, outputType = None)
+        IO.double_plot(self, steps = steps, simplify = True, outputType = outputType)
 
 
 
