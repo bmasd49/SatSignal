@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 import os
 import numpy as np
 import datetime
+import soundfile
 
 def readFile(filename):
     """read wavefile and return sampling rate, as well as recorededSignal as a complex value made of both channels of the wavefile."""
@@ -11,7 +12,7 @@ def readFile(filename):
     return fs, complexSignal
 
 
-def plotting(signal, steps = None, simplify = False, outputType = None):
+def plotting(signal, steps = None, simplify = True, outputType = None):
     plt.figure(figsize=(12,6), dpi=300)
     scale = 1e-3 #convert Hz to kHz
     if simplify:
@@ -19,15 +20,21 @@ def plotting(signal, steps = None, simplify = False, outputType = None):
     else:
         f = signal.fullFreq * scale
     centroids = np.zeros_like(steps, dtype=float)
-    os.system("rm ./gif/*.png")
+    if os.name == 'nt':
+        os.system("del .\gif\*.png")
+    else:
+        os.system("rm ./gif/*.png")
 
     for step in range(len(steps)):
         print(f"Step {step}/{len(steps)}")
-        mag, centroid = signal.spectrogram(step=step, simplify=simplify)
-        centroid = (centroid + signal.signalOffset)*scale
+        # mag, centroid = signal.spectrogram(step=step, simplify=simplify)
+        mag, centroid = signal.spectral(step=step, simplify=simplify)
+        plt.plot(f+signal.center_frequency*scale, mag, '.', markersize=1.)
+        
+        if centroid != None:
+            centroid = (centroid + signal.center_frequency)*scale
+            plt.axvline(x=centroid, color='red', markersize=0.1, label=f'Centroid={centroid:.1f}kHz')
         centroids[step] = centroid
-        plt.plot(f+signal.signalOffset*scale, mag, '.', markersize=1.)
-        plt.axvline(x=centroid, color='red', markersize=0.1, label=f'Centroid={centroid:.1f}kHz')
         plt.ticklabel_format(useOffset=False)
         plt.ylim([-40,50])
         plt.yticks(np.arange(50,-50,-10))
@@ -35,12 +42,15 @@ def plotting(signal, steps = None, simplify = False, outputType = None):
         plt.title(f'{signal.name}: Frequency domain at step {step:03d} ({datetime.timedelta(seconds=int(step*signal.timeStep))}) with each step = {signal.timeStep}s')
         plt.xlabel(f'Frequency (kHz)')
         plt.ylabel('Amplitude (dB)')
-        plt.legend()
+        #plt.legend()
         plt.grid()
         plt.savefig(f'./gif/{step:03d}.png')
         plt.clf()
 
-    plt.plot(centroids, range(len(centroids)), '.')
+    for i in range(len(centroids)):
+        if centroids[i] != None:
+            plt.plot(centroids[i], i, 'r.')
+    #plt.plot(centroids, range(len(centroids)), '.')
     plt.ticklabel_format(useOffset=False)
     plt.xlabel("Centroid position [kHz]")
     plt.ylabel("Time step")

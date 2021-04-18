@@ -3,42 +3,43 @@
 # from scipy.ndimage import uniform_filter1d
 import numpy as np
 
-def local(signal, timeInterval=None, freqInterval=None):
-    """Unused for now"""
-    if timeInterval==None:
-        timeInterval = (0, signal.shape[0])
-    if freqInterval==None:
-        freqInterval = (signal.defaultFreq - signal.shifingRange, signal.defaultFreq + signal.shifingRange)
-    pass
-
-def windowing():
-    pass
-
 def centroid(freq, mag):
     """Finding the center, or spectral centroid, of the signal.
     """   
-    return  np.sum(freq * mag) / np.sum(mag)
+    mag_sum = np.sum(mag)
+    if mag_sum == 0:
+        return None
+    else:
+        return  np.sum(freq * mag) / mag_sum
 
-def Hz_to_kHz(x):
-    return x/1000
 
-def amp_to_dB(x):
-    return 20*np.log10(x)
+def avg_binning(inputArray, resolution):
+    avg_mag = np.empty(resolution)
+    for i, value in enumerate(np.array_split(inputArray, resolution)):
+        avg_mag[i] = np.mean(value)
+    return avg_mag
 
-def filtering(fs, signal): 
-    return savgol_filter(signal, window_length=1001, polyorder=2)
+def channel_filter(mag, resolution, full_bandwidth, pass_bandwidth):
+    in_channel = False
+    pass_step_width = int(pass_bandwidth / full_bandwidth * resolution)
+    mag[-1] = 0
+    for i in range(resolution):
+        if (in_channel == False) and (mag[i] > 0):
+            in_channel = True
+            channel_begin = i
+        if (in_channel == True) and (mag[i] == 0):
+            in_channel = False
+            if (i - channel_begin < pass_step_width):
+                mag[channel_begin:i] = 0
 
-def avg_binning(inputArray, sensitivity):
-    numberOfBins = int(len(inputArray)/sensitivity)
-    return np.array([np.mean(value) for value in np.array_split(inputArray, numberOfBins)])
+def calculate_offset(input_mag, full_bandwidth, pass_bandwidth):
+    resolution = int(full_bandwidth/pass_bandwidth)
+    mag = np.empty(resolution)
+    std = np.empty(resolution)
+    for i, value in enumerate(np.array_split(input_mag, resolution)):
+        mag[i] = np.mean(value)
+        std[i] = np.std(value)
+    return - (np.min(mag) + 4*np.min(std))
 
-def moving_avg_filter(f, mag, sensitivity):
-    """Unused for now
-    """
-    fBins = binning(f, sensitivity)
-    magBins = binning(mag, sensitivity)
-    avg_f = np.average(fBins, axis=1)
-    avg_mag = np.average(magBins, axis=1)
-    return avg_f, avg_mag
 
 

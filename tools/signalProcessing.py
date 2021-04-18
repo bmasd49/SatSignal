@@ -3,7 +3,7 @@ import tools.signalTools as tools
 import tools.IOtools as IO
 
 class signal:
-    def __init__(self, signalName, signalPath, signalOffset = None, expectedFreq = None, bandWidth = None, timeInterval = None, timeStep = None, resolution = None):
+    def __init__(self, signalName, signalPath, center_frequency = None, expectedFreq = None, bandWidth = None, timeInterval = None, timeStep = None, resolution = None, pass_bandwidth = None):
         self.name = signalName
         self.path = signalPath
         self.fs, self.rawSignal = IO.readFile(signalPath)
@@ -26,10 +26,10 @@ class signal:
 
         self.sensitivity = int(self.bandWidth/self.resolution)
 
-        if signalOffset == None:
-            self.signalOffset = 0
+        if center_frequency == None:
+            self.center_frequency = 0
         else:
-            self.signalOffset = signalOffset
+            self.center_frequency = center_frequency
 
         if timeInterval != None:
             self.rawSignal = self.rawSignal[int(timeInterval[0]*self.fs):int(timeInterval[1]*self.fs)]
@@ -37,51 +37,44 @@ class signal:
             self.timeStep = 1.
         else:
             self.timeStep = timeStep
-        
-        self.totalLength = int(self.rawSignal.shape[0]/(self.fs*self.timeStep))
 
-        # if self.name == 'NOAA15':
-            # self.defaultFreq = 137.620e6
-        # elif self.name == 'NOAA18':
-            # self.defaultFreq = 137.9125e6
-        # elif self.name == 'NOAA19':
-            # self.defaultFreq = 137.100e6
-        # else:
-            # print('Please type in default frequency of the satellite: ')
-            # self.defaultFreq == float(input())
+        if pass_bandwidth == None:
+            self.pass_bandwidth = 1000
+        else:
+            self.pass_bandwidth = pass_bandwidth
+   
+        self.totalLength = int(self.rawSignal.shape[0]/(self.fs*self.timeStep))
+        self.noise_offset = 0
 
         fullFreq = np.fft.fftfreq(int(self.fs * self.timeStep), 1/(self.fs))
-        # self.bandwidthIndex = np.where(np.logical_and(fullFreq > - self.bandWidth/2, fullFreq < self.bandWidth/2))
-        # self.bandwidthIndex = np.where(np.logical_and(fullFreq > self.expectedFreq - self.signalOffset - self.bandWidth/2, fullFreq < self.expectedFreq - self.signalOffset + self.bandWidth/2))
-        self.bandwidthIndex = np.where(np.logical_and(fullFreq > self.expectedFreq - self.signalOffset - self.bandWidth/2, fullFreq < self.expectedFreq - self.signalOffset + self.bandWidth/2))
-        self.fullFreq = fullFreq[self.bandwidthIndex] #+ self.signalOffset
-        self.simplifiedFreq = tools.avg_binning(self.fullFreq, self.sensitivity)
+        self.bandwidthIndex = np.where(np.logical_and(fullFreq > self.expectedFreq - self.center_frequency - self.bandWidth/2, fullFreq < self.expectedFreq - self.center_frequency + self.bandWidth/2))
+        self.fullFreq = fullFreq[self.bandwidthIndex] #+ self.center_frequency
+        self.simplifiedFreq = tools.avg_binning(self.fullFreq, self.resolution)
 
-    def FFT(self, step=None):
+    def spectral(self, step=None, simplify=True):
         localSignal = self.rawSignal[int(self.fs * self.timeStep * step): int(self.fs * self.timeStep * (step+1))]/127.
         localSignal *= np.hanning(int(self.fs * self.timeStep))
-        magnitude = 20*np.log10(np.abs(np.fft.fft(localSignal)[self.bandwidthIndex]))
-        return magnitude
-    
-    def findSignal(self, magnitude):
-        # std = np.std(magnitude)
-        # safety = -std
-        safety = 0
-        mag = tools.avg_binning(magnitude, self.sensitivity)
-        std = np.std(mag)
-        mag_avg = np.mean(mag)
-        mag -= mag_avg + std + safety
-        mag = np.clip(mag, a_min=0., a_max=None)
-        return mag, tools.centroid(self.simplifiedFreq, mag)
+        raw_mag = 20*np.log10(np.abs(np.fft.fft(localSignal)[self.bandwidthIndex]))
+        safety_factor = 0
+        avg_mag = tools.avg_binning(raw_mag, self.resolution)   
+        if (step%10 == 0):
+            self.noise_offset = tools.calculate_offset(avg_mag, self.bandWidth, 1e3)   
+        avg_mag += self.noise_offset + safety_factor
+        np.clip(avg_mag, out=avg_mag, a_min=0., a_max=None)
+        tools.channel_filter(avg_mag, self.resolution, self.bandWidth, self.pass_bandwidth)
+        centroid = tools.centroid(self.simplifiedFreq, avg_mag)
 
-    def spectrogram(self, step=None, simplify=False):
-        mag = self.FFT(step=step)
-        mag1, centroid = self.findSignal(mag)
         if simplify:
-            return mag1, centroid
+            return avg_mag, centroid
         else:
-            return mag, centroid
-        
+            return raw_mag, centroid
+
+    def find_channels(self):
+        pass
+
+    def plot(self, maxStep=0, outputType='gif'):
+        steps = range(maxStep)
+        IO.plotting(self, steps = steps, simplify = True, outputType = None)
 
 
 
