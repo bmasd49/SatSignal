@@ -5,6 +5,4 @@ SDRSharp*
 __pycache__
 *.pyc
 *.pyc*
-*.png
-*.mp4
 *.gif
