@@ -15,9 +15,8 @@ def avg_binning(inputArray, resolution):
         avg_mag[i] = np.mean(value)
     return avg_mag
 
-def channel_filter(mag, resolution, full_bandwidth, pass_bandwidth):
+def channel_filter(mag, resolution, pass_step_width):
     in_channel = False
-    pass_step_width = int(pass_bandwidth / full_bandwidth * resolution)
     mag[-pass_step_width:-1] = 0
     for i in range(resolution):
         if (in_channel == False) and (mag[i] > 0):
