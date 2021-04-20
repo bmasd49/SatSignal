@@ -1,6 +1,5 @@
 *.zip
 *.wav
-test*
 SDRSharp*
 __pycache__
 *.pyc

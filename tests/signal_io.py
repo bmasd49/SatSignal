@@ -4,7 +4,7 @@ import os
 import numpy as np
 import datetime
 import soundfile
-PATH=os.path.dirname(__file__)
+PATH=os.path.dirname(os.path.dirname(__file__))
 
 def readFile(filename):
     """read wavefile and return sampling rate, as well as recorededSignal as a complex value made of both channels of the wavefile."""
